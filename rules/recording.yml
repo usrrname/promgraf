@@ -1,0 +1,24 @@
+groups:
+    - name: recording_rules
+      interval: 1m
+      rules:
+          - record: local_storage:memory_series:count
+            expr: prometheus_local_storage_memory_series{instance=~"prometheus:9090"}
+
+          - record: node:cpu_usage:avg5m
+            expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+          - record: node:memory_usage:percent
+            expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100
+
+          - record: container:cpu_usage:avg5m
+            expr: sum by(name) (rate(container_cpu_usage_seconds_total{name!=""}[5m])) * 100
+
+          - record: container:memory_usage:bytes
+            expr: sum by(name) (container_memory_usage_bytes{name!=""})
+          # node_exporter filesystem usage in bytes excluding tmpfs
+          - record: node:filesystem_usage:percent
+            expr: (node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_free_bytes{fstype!="tmpfs"}) / node_filesystem_size_bytes{fstype!="tmpfs"} * 100
+
+          - record: node:idle_disk_io_time:avg5m
+            expr: avg by(instance) (rate(node_disk_io_time_seconds_total[5m])) * 100

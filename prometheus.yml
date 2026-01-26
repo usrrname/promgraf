@@ -1,0 +1,65 @@
+global:
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    evaluation_interval: 30s
+
+rule_files:
+    - "./rules/*.yml"
+
+scrape_configs:
+    - job_name: cadvisor
+      static_configs:
+          - targets: ["cadvisor:8080"]
+
+    - job_name: immich_api
+      static_configs:
+          - targets: ["immich-server:8081"]
+
+    - job_name: immich_microservices
+      static_configs:
+          - targets: ["immich-server:8082"]
+
+    - job_name: prometheus
+      scrape_interval: 60s
+      static_configs:
+          - targets: ["prometheus:9090"]
+      metric_relabel_configs:
+          - regex: "prometheus_local_storage_memory_series|prometheus_remote_storage_samples_*|prometheus_remote_storage_.*|prometheus_http_requests_total|prometheus_tsdb_*|process_start_time_seconds"
+            action: labelkeep
+          - regex: "^(promhttp_.*)$"
+            action: drop
+
+    - job_name: node-exporter
+      static_configs:
+          - targets: ["node-exporter:9100"]
+      metric_relabel_configs:
+          - regex: "node_*"
+            action: labelkeep
+
+remote_write:
+    - url: "https://prometheus-prod-32-prod-ca-east-0.grafana.net/api/prom/push"
+      basic_auth:
+          username: "2488765"
+          password_file: /secrets/grafana_pw
+      follow_redirects: true
+      queue_config:
+          capacity: 5000
+          min_shards: 1
+          max_shards: 1
+          max_samples_per_send: 500
+          batch_send_deadline: 5s
+          min_backoff: 100ms
+          max_backoff: 10s
+      write_relabel_configs:
+          - source_labels: [__name__]
+            regex: "^(immich_users_total|prometheus_remote_storage_.*|process_resident_memory_bytes|go_memstats_alloc_bytes|prometheus_http_requests_total)$"
+            action: keep
+          - source_labels: [__name__]
+            regex: "^(immich_(album|user|asset|asset_job)_repository|.*_bucket)$"
+            action: drop
+          - source_labels: [__name__, instance]
+            regex: "^(container_label_*|go_.*|promhttp_.*|process_start_time_seconds|prometheus_.*|.*_bucket)$"
+            action: drop
+          - source_labels: [instance]
+            regex: ".*[0-9a-f]{8,}.*"
+            action: drop

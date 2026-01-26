@@ -1,0 +1,101 @@
+name: monitoring
+
+services:
+    prometheus:
+        image: prom/prometheus
+        container_name: prometheus
+        env_file: .env
+        volumes:
+            - ~/code/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+            # a named volume defined in the bottom of the Compose file; it can also be a mounted folder
+            - prometheus-data:/prometheus
+            - ~/code/prometheus/secrets/grafana_pw:/secrets/grafana_pw:ro
+        healthcheck:
+            test:
+                [
+                    "CMD",
+                    "wget",
+                    "--quiet",
+                    "--tries=1",
+                    "--spider",
+                    "http://prometheus:9090/-/healthy",
+                ]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 60s
+        command:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.wal-compression" # Compress write-ahead log
+            - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+            - "--web.console.templates=/usr/share/prometheus/consoles"
+            - "--web.enable-lifecycle" # Enable runtime reloading
+        ports:
+            - "9090:9090"
+        networks:
+            - monitor
+            - immich_default
+        restart: unless-stopped
+
+    node-exporter:
+        image: prom/node-exporter:latest
+        container_name: node-exporter
+        volumes:
+            - /proc:/host/proc:ro
+            - /sys:/host/sys:ro
+            - /:/rootfs:ro
+        command:
+            - "--path.procfs=/host/proc"
+            - "--path.sysfs=/host/sys"
+            - "--collector.filesystem.ignored-mount-points=^/(sys|proc|boot|dev|var/lib/docker/|host|etc)($|/)"
+        ports:
+            - "9100:9100"
+        networks:
+            - monitor
+        restart: unless-stopped
+
+    cadvisor:
+        image: gcr.io/cadvisor/cadvisor:latest
+        container_name: cadvisor
+        volumes:
+            - /:/rootfs:ro
+            - /var/run:/var/run:rw
+            - /sys:/sys:ro
+            - /var/lib/docker/:/var/lib/docker:ro
+            - /dev/disk/:/dev/disk:ro
+        ports:
+            - "8080:8080"
+        networks:
+            - monitor
+        restart: unless-stopped
+
+    grafana:
+        container_name: grafana
+        env_file: .env
+        command: ["./run.sh", "-disable-reporting"] #  disable Grafana's telemetry
+        environment:
+            - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-admin}
+            - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+            - GF_USERS_ALLOW_SIGN_UP=false
+        ports:
+            - 3000:3000
+        image: grafana/grafana
+        volumes:
+            - grafana-data:/var/lib/grafana
+            - ~/code/prometheus/grafana/provisioning:/etc/grafana/provisioning
+            - ~/code/prometheus/grafana/provisioning/dashboards:/var/lib/grafana/dashboards
+            - ~/code/prometheus/secrets/grafana_pw:/run/secrets/grafana_pw:ro
+        networks:
+            - monitor
+            - immich_default
+        restart: unless-stopped
+networks:
+    monitor:
+        driver: bridge
+    immich_default:
+        external: true
+
+volumes:
+    prometheus-data:
+    grafana-data:
