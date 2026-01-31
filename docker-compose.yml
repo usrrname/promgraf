@@ -8,7 +8,8 @@ services:
         volumes:
             - ~/code/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
             # a named volume defined in the bottom of the Compose file; it can also be a mounted folder
-            - prometheus-data:/prometheus
+            # Use ext4 partition for the tsdb
+            - /mnt/storage/prometheus:/prometheus 
             - ~/code/prometheus/secrets/grafana_pw:/secrets/grafana_pw:ro
         healthcheck:
             test:
@@ -38,6 +39,19 @@ services:
             - immich_default
         restart: unless-stopped
 
+    alertmanager:
+        image: prom/alertmanager:latest
+        container_name: alertmanager
+        volumes:
+            - ./alertmanager:/etc/alertmanager
+        command:
+            - "--config.file=/etc/alertmanager/config.yml"
+            - "--storage.path=/alertmanager"
+        ports:
+            - "9093:9093"
+        networks:
+            - monitoring
+        restart: unless-stopped
     node-exporter:
         image: prom/node-exporter:latest
         container_name: node-exporter
