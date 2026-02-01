@@ -1,15 +1,15 @@
 name: monitoring
 
 services:
+
     prometheus:
         image: prom/prometheus
         container_name: prometheus
         env_file: .env
         volumes:
             - ~/code/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-            # a named volume defined in the bottom of the Compose file; it can also be a mounted folder
             # Use ext4 partition for the tsdb
-            - /mnt/storage/prometheus:/prometheus 
+            - /mnt/storage/prometheus:/prometheus
             - ~/code/prometheus/secrets/grafana_pw:/secrets/grafana_pw:ro
         healthcheck:
             test:
@@ -32,6 +32,7 @@ services:
             - "--web.console.libraries=/usr/share/prometheus/console_libraries"
             - "--web.console.templates=/usr/share/prometheus/consoles"
             - "--web.enable-lifecycle" # Enable runtime reloading
+            - "--web.enable-admin-api" # Enable admin API
         ports:
             - "9090:9090"
         networks:
@@ -43,18 +44,22 @@ services:
         image: prom/alertmanager:latest
         container_name: alertmanager
         volumes:
-            - ./alertmanager:/etc/alertmanager
+            - alertmanager-data:/alertmanager-data
+            - ~/code/prometheus/alertmanager/config.yml:/etc/alertmanager/config.yml
+            - ~/code/prometheus/secrets/alertmanager_pw:/secrets/alertmanager_pw:ro
         command:
             - "--config.file=/etc/alertmanager/config.yml"
             - "--storage.path=/alertmanager"
+        env_file: .env
         ports:
             - "9093:9093"
         networks:
-            - monitoring
+            - monitor
         restart: unless-stopped
     node-exporter:
         image: prom/node-exporter:latest
         container_name: node-exporter
+        env_file: .env
         volumes:
             - /proc:/host/proc:ro
             - /sys:/host/sys:ro
@@ -72,6 +77,7 @@ services:
     cadvisor:
         image: gcr.io/cadvisor/cadvisor:latest
         container_name: cadvisor
+        env_file: .env
         volumes:
             - /:/rootfs:ro
             - /var/run:/var/run:rw
@@ -87,7 +93,7 @@ services:
     grafana:
         container_name: grafana
         env_file: .env
-        command: ["./run.sh", "-disable-reporting"] #  disable Grafana's telemetry
+        command: ["./run.sh", "-disable-reporting"]
         environment:
             - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-admin}
             - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
@@ -113,3 +119,4 @@ networks:
 volumes:
     prometheus-data:
     grafana-data:
+    alertmanager-data:

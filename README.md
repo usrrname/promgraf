@@ -4,7 +4,7 @@ HomeNAS monitoring for my Pi 4 NAS using:
 - Prometheus `localhost:9090` w/remote write to Grafana Cloud 
 - Grafana `localhost:3000`
 - Docker Compose
-- [] :construction: Alertmanager with email notifications `localhost:9093`
+- Alertmanager with email notifications `localhost:9093`
 
 Listening for 
 - Node Exporter metrics on port `9100`
