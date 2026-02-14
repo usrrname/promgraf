@@ -1,13 +1,20 @@
 name: monitoring
 
-services:
+# import of immich compose file prevents needing to define immich_default network in this file
+include:
+    - path: ../immich/docker-compose.yml
 
+services:
     prometheus:
         image: prom/prometheus
         container_name: prometheus
+        depends_on:
+            immich-server:
+                condition: service_healthy
         env_file: .env
         volumes:
             - ~/code/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+            - ~/code/prometheus/rules:/etc/prometheus/rules
             # Use ext4 partition for the tsdb
             - /mnt/storage/prometheus:/prometheus
             - ~/code/prometheus/secrets/grafana_pw:/secrets/grafana_pw:ro
@@ -37,8 +44,16 @@ services:
             - "9090:9090"
         networks:
             - monitor
-            - immich_default
+            - default
         restart: unless-stopped
+        deploy:
+            resources:
+                limits:
+                    cpus: "1.0"
+                    memory: "384M"
+                reservations:
+                    cpus: "0.5"
+                    memory: "256M"
 
     alertmanager:
         image: prom/alertmanager:latest
@@ -56,18 +71,22 @@ services:
         networks:
             - monitor
         restart: unless-stopped
+
     node-exporter:
         image: prom/node-exporter:latest
         container_name: node-exporter
         env_file: .env
+        user: "65534:65534" # nobody user/group
         volumes:
             - /proc:/host/proc:ro
             - /sys:/host/sys:ro
             - /:/rootfs:ro
+            - /var/lib/node_exporter/textfile_collector:/var/lib/node_exporter/textfile_collector:ro
         command:
             - "--path.procfs=/host/proc"
             - "--path.sysfs=/host/sys"
             - "--collector.filesystem.ignored-mount-points=^/(sys|proc|boot|dev|var/lib/docker/|host|etc)($|/)"
+            - "--collector.textfile.directory=/var/lib/node_exporter/textfile_collector"
         ports:
             - "9100:9100"
         networks:
@@ -78,12 +97,22 @@ services:
         image: gcr.io/cadvisor/cadvisor:latest
         container_name: cadvisor
         env_file: .env
+        command:
+            - "--enable_metrics=cpu,memory,network"
+            - "--store_container_labels=false"
+            - "--docker_only=true"
+            - "--housekeeping_interval=30s"
         volumes:
-            - /:/rootfs:ro
-            - /var/run:/var/run:rw
-            - /sys:/sys:ro
-            - /var/lib/docker/:/var/lib/docker:ro
-            - /dev/disk/:/dev/disk:ro
+            - "/:/rootfs:ro"
+            - "/var/run:/var/run:ro"
+            - "/sys:/sys:ro"
+            - "/var/lib/docker/:/var/lib/docker:ro"
+            - "/dev/disk/:/dev/disk:ro"
+        deploy:
+            resources:
+                limits:
+                    cpus: "0.5"
+                    memory: "256M"
         ports:
             - "8080:8080"
         networks:
@@ -108,13 +137,10 @@ services:
             - ~/code/prometheus/secrets/grafana_pw:/run/secrets/grafana_pw:ro
         networks:
             - monitor
-            - immich_default
         restart: unless-stopped
 networks:
     monitor:
         driver: bridge
-    immich_default:
-        external: true
 
 volumes:
     prometheus-data:

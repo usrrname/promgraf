@@ -25,8 +25,7 @@ This document describes the current storage distribution for the Raspberry Pi 4 
 - **Drive**: `/dev/sda2` (2TB partition from 8TB Seagate drive)
 - **Purpose**: High-performance storage for write-heavy workloads
 - **Services**:
-  - **Prometheus TSDB**: `/mnt/storage/prometheus/` (time-series database)
-  - **Future**: Can host Grafana data or other performance-sensitive services
+  - **Prometheus TSDB**: `/mnt/storage/prometheus/` (time-series database with 15 days of retention)
 
 ### 3. MicroSD Card (`/`)
 - **Type**: ext4 (root filesystem)

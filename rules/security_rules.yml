@@ -1,0 +1,48 @@
+groups:
+    - name: security.rules
+      rules:
+        #   # Test alert: always fires so you can verify Prometheus → Alertmanager. Remove after confirming.
+        #   - alert: AlertmanagerPipelineTest
+        #     expr: count(up) >= 0
+        #     for: 10s
+        #     labels:
+        #         severity: info
+        #     annotations:
+        #         summary: "Alertmanager pipeline test"
+        #         description: "If you see this in Alertmanager, the pipeline works. You can delete this rule."
+
+          - alert: UFWHighBlockRate
+            expr: rate(ufw_blocked_total[5m]) > 10
+            for: 2m
+            labels:
+                severity: warning
+            annotations:
+                summary: "High rate of UFW blocked connections ({{ $value }})"
+                description: "UFW blocks are occurring at >10/sustained rate (5m avg). Investigate possible scan or attack."
+
+          - alert: UFWBurst
+            expr: increase(ufw_blocked_total[5m]) > 50
+            for: 1m
+            labels:
+                severity: critical
+            annotations:
+                summary: "Burst of UFW blocked connections"
+                description: "More than 50 blocked connections observed in the last 5 minutes."
+
+          - alert: Fail2banManyBans
+            expr: max(fail2ban_banned_total) > 20
+            for: 5m
+            labels:
+                severity: warning
+            annotations:
+                summary: "Many IPs banned by fail2ban"
+                description: "One or more fail2ban jails have >20 banned IPs. Check for widespread malicious activity or false positives."
+
+          - alert: Fail2banSshdBans
+            expr: fail2ban_banned_total{jail="sshd"} > 5
+            for: 5m
+            labels:
+                severity: warning
+            annotations:
+                summary: "Excessive SSH bans"
+                description: "sshd jail has banned more than 5 IPs. Consider reviewing SSH access and rate limiting."
