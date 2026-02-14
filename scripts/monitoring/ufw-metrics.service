@@ -1,0 +1,6 @@
+[Unit]
+Description=Write UFW Prometheus metrics
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ufw-metrics.sh

@@ -1,0 +1,6 @@
+[Unit]
+Description=Write Fail2ban Prometheus metrics
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/fail2ban-metrics.sh
