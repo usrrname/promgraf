@@ -14,12 +14,16 @@ alerting:
     alertmanagers:
         - scheme: http
           static_configs:
-            - targets: ["alertmanager:9093"]
+              - targets: ["alertmanager:9093"]
+                labels:
+                    host: "house"
 
 scrape_configs:
     - job_name: cadvisor
       static_configs:
           - targets: ["cadvisor:8080"]
+            labels:
+                host: "house"
       metric_relabel_configs:
           # Drop all Docker Compose labels
           - regex: "container_label_com_docker_compose_.*|"
@@ -28,6 +32,8 @@ scrape_configs:
     - job_name: immich_api
       static_configs:
           - targets: ["immich-server:8081"]
+            labels:
+                host: "house"
       metric_relabel_configs:
           - source_labels: [__name__]
             regex: "^(immich_users_total|immich_album_repository|immich_user_repository|immich_asset_repository|immich_asset_job_repository|http_server_duration_*)$"
@@ -39,36 +45,70 @@ scrape_configs:
     - job_name: immich_microservices
       static_configs:
           - targets: ["immich-server:8082"]
+            labels:
+                host: "house"
 
     - job_name: prometheus
       scrape_interval: 60s
       static_configs:
           - targets: ["prometheus:9090"]
+            labels:
+                host: "house"
       metric_relabel_configs:
-          - regex: "prometheus_local_storage_memory_series|prometheus_remote_storage_samples_*|process_resident_memory_bytes|process_virtual_memory_bytes|prometheus_remote_storage_.*|prometheus_http_requests_total|prometheus_tsdb_*|process_start_time_seconds|scrape_samples_.*"
+          - regex: "prometheus_local_storage_memory_series|prometheus_remote_storage_samples_*|process_resident_memory_bytes|process_virtual_memory_bytes|prometheus_remote_storage_.*|prometheus_http_requests_total|prometheus_tsdb_.*|process_start_time_seconds|scrape_samples_.*"
             action: labelkeep
           - source_labels: [__address__]
             regex: "^(__address__)$"
             replacement: "instance"
             action: keep
+          - source_labels: [__scheme__]
+            regex: "^(http)"
+            action: drop
+          - source_labels: [instance]
+            regex: "^(instance)$"
+            target_label: instance
+            replacement: "job"
+            action: replace
+    - job_name: "sink-exporter"
+      static_configs:
+          - targets: ["192.168.68.50:9100", "192.168.68.50:8080"]
+            labels:
+                host: "sink"
+      scrape_interval: 60s
+      metric_relabel_configs:
+          - source_labels: [__name__]
+            regex: "^(node_.*|ufw_.*|fail2ban_.*)$"
+            action: keep
+          - source_labels: [__scheme__]
+            regex: "^(http)"
+            action: drop
+    - job_name: node-exporter
+      static_configs:
+          - targets: ["node-exporter:9100"]
+            labels:
+                host: "house"
+      scrape_interval: 60s
+      metric_relabel_configs:
+          - source_labels: [__name__]
+            regex: "^(node_.*|ufw_.*|fail2ban_.*)$"
+            action: keep
+          - source_labels: [instance, __address__, __scheme__]
+            regex: "^(http)$"
+            action: drop
+          - source_labels: [__scheme__]
+            regex: "^(http)"
+            action: drop
           - source_labels: [instance]
             regex: "^(instance)$"
             target_label: instance
             replacement: "job"
             action: replace
 
-    - job_name: node-exporter
-      static_configs:
-          - targets: ["node-exporter:9100"]
-      scrape_interval: 60s
-      metric_relabel_configs:
-          - source_labels: [__name__]
-            regex: "^(node_.*|ufw_.*|fail2ban_.*)$"
-            action: keep
-
     - job_name: alertmanager
       static_configs:
           - targets: ["alertmanager:9093"]
+            labels:
+                host: "house"
 
 remote_write:
     - url: "https://prometheus-prod-32-prod-ca-east-0.grafana.net/api/prom/push"
