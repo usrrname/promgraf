@@ -19,6 +19,15 @@ This document describes the current storage distribution for the Raspberry Pi 4 
   - **Immich Postgres**: `/mnt/nas/immich/postgres` (database, optional)
   - **Immich Backups**: `/mnt/nas/immich-backups/` (backup files)
 
+### Verify Btrfs RAID 1
+```bash
+# Check filesystem status
+sudo btrfs filesystem show /mnt/nas
+
+# Check usage
+sudo btrfs filesystem usage /mnt/nas
+```
+
 ### 2. Ext4 Partition (`/mnt/storage`)
 - **Type**: ext4 filesystem
 - **Size**: 1.8TB (2GB used for swap)
@@ -26,6 +35,7 @@ This document describes the current storage distribution for the Raspberry Pi 4 
 - **Purpose**: High-performance storage for write-heavy workloads
 - **Services**:
   - **Prometheus TSDB**: `/mnt/storage/prometheus/` (time-series database with 15 days of retention)
+  - **Logs**: `/mnt/storage/logs/` for custom logs for node-exporter
 
 ### 3. MicroSD Card (`/`)
 - **Type**: ext4 (root filesystem)
