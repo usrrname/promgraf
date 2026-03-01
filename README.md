@@ -10,6 +10,7 @@ Listening for
 - Node Exporter metrics on port `9100`
   - UFW metrics w/custom systemd service and timer
   - Fail2ban metrics w/custom systemd service and timer
+- process-exporter on `9256`
 - cAdvisor on port `8080`
 - immich API on port `8081` 
 - immich microservices `8082`
@@ -17,7 +18,15 @@ Listening for
 ## Run
 
 ```bash
+# To start all containers:
 docker compose up -d
+
+# To stop and remove all containers, networks, and volumes:
+docker compose down -v
+
+# To run the exporter container separately:
+docker compose up -f docker-compose-exporter.yml
+
 ```
 
 ### Directory Structure
@@ -25,13 +34,20 @@ docker compose up -d
 .
 ├── alertmanager       # routing and notification settings
 ├── docker-compose.yml
+├── docker-compose-exporter.yml
 ├── grafana
 |   └── provisioning/
 |       ├── dashboards/
 |       └── datasources/
 ├── prometheus.yml
+├── process-exporter.yml
 ├── README.md
 └── rules              # custom alerting and recording rules
+```
+
+# Run 
+```
+docker compose -f docker-compose.yml -f docker-compose-exporter.yml up -d
 ```
 
 Update the node exporter container with the latest config and mounts:
@@ -51,7 +67,7 @@ sudo systemctl status <timer> <service> --no-pager
 `docker compose up -d --no-deps --force-recreate node-exporter`
 
 Moving the UFW log to a separate file on the storage partition and configuring rsyslog to write UFW messages there can help reduce wear on the SD card and centralize logs. Here's how you can set this up:
-
+```
 # Make sure the storage directory exists and set sensible perms
 sudo mkdir -p /mnt/storage/logs
 sudo chown root:adm /mnt/storage/logs
@@ -74,3 +90,4 @@ sudo systemctl restart rsyslog
 sudo logger -p kern.warning "UFW TEST from $(hostname)"
 sleep 1
 sudo tail -n 50 /mnt/storage/logs/ufw.log || sudo tail -n 50 /var/log/ufw.log || true
+```

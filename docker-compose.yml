@@ -1,8 +1,11 @@
 name: monitoring
 
-# import of immich compose file prevents needing to define immich_default network in this file
 include:
     - path: ../immich/docker-compose.yml
+
+networks:
+    monitor:
+        driver: bridge
 
 services:
     prometheus:
@@ -14,7 +17,6 @@ services:
         env_file: .env
         volumes:
             - ~/code/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-            - ~/code/prometheus/rules:/etc/prometheus/rules
             # Use ext4 partition for the tsdb
             - /mnt/storage/prometheus:/prometheus
             - ~/code/prometheus/secrets/grafana_pw:/secrets/grafana_pw:ro
@@ -72,27 +74,6 @@ services:
             - monitor
         restart: unless-stopped
 
-    node-exporter:
-        image: prom/node-exporter:latest
-        container_name: node-exporter
-        env_file: .env
-        user: "65534:65534" # nobody user/group
-        volumes:
-            - /proc:/host/proc:ro
-            - /sys:/host/sys:ro
-            - /:/rootfs:ro
-            - /var/lib/node_exporter/textfile_collector:/var/lib/node_exporter/textfile_collector:ro
-        command:
-            - "--path.procfs=/host/proc"
-            - "--path.sysfs=/host/sys"
-            - "--collector.filesystem.ignored-mount-points=^/(sys|proc|boot|dev|var/lib/docker/|host|etc)($|/)"
-            - "--collector.textfile.directory=/var/lib/node_exporter/textfile_collector"
-        ports:
-            - "9100:9100"
-        networks:
-            - monitor
-        restart: unless-stopped
-
     cadvisor:
         image: gcr.io/cadvisor/cadvisor:latest
         container_name: cadvisor
@@ -138,10 +119,6 @@ services:
         networks:
             - monitor
         restart: unless-stopped
-networks:
-    monitor:
-        driver: bridge
-
 volumes:
     prometheus-data:
     grafana-data:

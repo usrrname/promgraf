@@ -1,0 +1,43 @@
+name: monitoring
+
+networks:
+    monitor:
+        driver: bridge
+
+services:
+    node-exporter:
+        image: prom/node-exporter:latest
+        container_name: node-exporter
+        env_file: .env
+        user: "65534:65534" # nobody user/group
+        volumes:
+            - /proc:/host/proc:ro
+            - /sys:/host/sys:ro
+            - /:/rootfs:ro
+            - /mnt/storage/node_exporter/textfile_collector:/var/lib/node_exporter/textfile_collector:ro
+        command:
+            - "--path.procfs=/host/proc"
+            - "--path.sysfs=/host/sys"
+            - "--collector.filesystem.ignored-mount-points=^/(sys|proc|boot|dev|var/lib/docker/|host|etc)($|/)"
+            - "--collector.textfile.directory=/var/lib/node_exporter/textfile_collector"
+        ports:
+            - "9100:9100"
+        networks:
+            - monitor
+        restart: unless-stopped
+
+    process-exporter:
+        image: ncabatoff/process-exporter:latest
+        container_name: process-exporter
+        env_file: .env
+        volumes:
+            - ~/code/prometheus/process-exporter.yml:/conf/process-exporter.yml:ro
+            - /proc:/host/proc:ro
+        command:
+            - "--config.path=/conf/process-exporter.yml"
+            - "--procfs=/host/proc"
+        ports:
+            - "9256:9256"
+        networks:
+            - monitor
+        restart: unless-stopped

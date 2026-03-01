@@ -36,7 +36,7 @@ scrape_configs:
                 host: "house"
       metric_relabel_configs:
           - source_labels: [__name__]
-            regex: "^(immich_users_total|immich_album_repository|immich_user_repository|immich_asset_repository|immich_asset_job_repository|http_server_duration_*)$"
+            regex: "^(immich_users_total|immich_album_repository_.*|immich_user_repository_.*|immich_asset_repository_.*|immich_asset_job_repository_.*|http_server_duration_.*)$"
             action: keep
           - source_labels: [__name__]
             regex: "^(immich_(album|user|asset|asset_job)_repository_bucket*|http_server_duration_bucket|.*_bucket)$"
@@ -103,7 +103,22 @@ scrape_configs:
             target_label: instance
             replacement: "job"
             action: replace
-
+    - job_name: process-exporter
+      static_configs:
+          - targets: ["process-exporter:9256"]
+            labels:
+                host: "house"
+      scrape_interval: 60s
+      metric_relabel_configs:
+          - source_labels: [__name__]
+            regex: "^(namedprocess_.*)$"
+            action: keep
+          - source_labels: [__address__, __scheme__]
+            regex: "^(http)$"
+            action: drop
+          - source_labels: [__scheme__]
+            regex: "^(http)"
+            action: drop
     - job_name: alertmanager
       static_configs:
           - targets: ["alertmanager:9093"]
