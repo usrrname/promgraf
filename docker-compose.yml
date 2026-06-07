@@ -43,7 +43,7 @@ services:
             - "--web.enable-lifecycle" # Enable runtime reloading
             - "--web.enable-admin-api" # Enable admin API
         ports:
-            - "9090:9090"
+            - "192.168.68.63:9090:9090"   # LAN only"        
         networks:
             - monitor
             - default
@@ -69,7 +69,7 @@ services:
             - "--storage.path=/alertmanager"
         env_file: .env
         ports:
-            - "9093:9093"
+            - "192.168.68.63:9093:9093"
         networks:
             - monitor
         restart: unless-stopped

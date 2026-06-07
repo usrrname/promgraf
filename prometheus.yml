@@ -69,9 +69,9 @@ scrape_configs:
             target_label: instance
             replacement: "job"
             action: replace
-    - job_name: "sink-exporter"
+    - job_name: "sink-node-exporter"
       static_configs:
-          - targets: ["192.168.68.50:9100", "192.168.68.50:8080"]
+          - targets: ["192.168.68.50:9100"]
             labels:
                 host: "sink"
       scrape_interval: 60s
@@ -82,6 +82,20 @@ scrape_configs:
           - source_labels: [__scheme__]
             regex: "^(http)"
             action: drop
+    - job_name: "sink-cadvisor"
+      static_configs:
+          - targets: ["192.168.68.50:8080"]
+            labels:
+                host: "sink"
+      scrape_interval: 60s
+      metric_relabel_configs:
+          - source_labels: [__name__]
+            regex: "^(node_.*|ufw_.*|fail2ban_.*)$"
+            action: keep
+          - source_labels: [__scheme__]
+            regex: "^(http)"
+            action: drop
+
     - job_name: node-exporter
       static_configs:
           - targets: ["node-exporter:9100"]
@@ -119,6 +133,21 @@ scrape_configs:
           - source_labels: [__scheme__]
             regex: "^(http)"
             action: drop
+    - job_name: immich_tunnel_metrics
+      metrics_path: /metrics
+      static_configs:
+          - targets: ["192.168.68.63:20242"]
+            labels:
+                host: "house"
+      scrape_interval: 60s
+      metric_relabel_configs:
+          - source_labels: [__address__, __scheme__]
+            regex: "^(http)$"
+            action: drop
+          - source_labels: [__scheme__]
+            regex: "^(http)"
+            action: drop
+
     - job_name: alertmanager
       static_configs:
           - targets: ["alertmanager:9093"]
