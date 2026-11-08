@@ -1,18 +1,18 @@
 global:
-    resolve_timeout: 5m
+    smtp_smarthost: "smtp.gmail.com:587"
+    smtp_from: "HomeNAS Monitoring <house795+monitoring@gmail.com>"
+    smtp_auth_username: "house795+monitoring@gmail.com"
+    smtp_auth_password_file: "/secrets/alertmanager_pw"
 
 route:
-    group_by: ["alertname"]
-    group_wait: 10s
-    group_interval: 10s
+    receiver: "email-receiver"
+    group_by: [alertname]
+    group_wait: 30s
+    group_interval: 5m
     repeat_interval: 1h
-    receiver: "email-notifications"
 
 receivers:
-    - name: "email-notifications"
+    - name: "email-receiver"
       email_configs:
-          - to: "jennifer7chan+monitoring@gmail.com"
-            from: "alertmanager@example.com"
-            smarthost: smtp.example.com:587
-            auth_username: "your-username"
-            auth_password: "your-password"
+          - to: "house795@gmail.com"
+            send_resolved: true

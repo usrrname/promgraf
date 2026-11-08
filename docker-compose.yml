@@ -1,125 +1,158 @@
-name: monitoring
-
-include:
-    - path: ../immich/docker-compose.yml
-
+---
 networks:
-    monitor:
-        driver: bridge
+  monitor:
+    name: monitor
+    external: true
+  default:
+    driver: bridge
 
 services:
-    prometheus:
-        image: prom/prometheus
-        container_name: prometheus
-        depends_on:
-            immich-server:
-                condition: service_healthy
-        env_file: .env
-        volumes:
-            - ~/code/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-            # Use ext4 partition for the tsdb
-            - /mnt/storage/prometheus:/prometheus
-            - ~/code/prometheus/secrets/grafana_pw:/secrets/grafana_pw:ro
-        healthcheck:
-            test:
-                [
-                    "CMD",
-                    "wget",
-                    "--quiet",
-                    "--tries=1",
-                    "--spider",
-                    "http://prometheus:9090/-/healthy",
-                ]
-            interval: 30s
-            timeout: 10s
-            retries: 3
-            start_period: 60s
-        command:
-            - "--config.file=/etc/prometheus/prometheus.yml"
-            - "--storage.tsdb.path=/prometheus"
-            - "--storage.tsdb.wal-compression" # Compress write-ahead log
-            - "--web.console.libraries=/usr/share/prometheus/console_libraries"
-            - "--web.console.templates=/usr/share/prometheus/consoles"
-            - "--web.enable-lifecycle" # Enable runtime reloading
-            - "--web.enable-admin-api" # Enable admin API
-        ports:
-            - "192.168.68.63:9090:9090"   # LAN only"        
-        networks:
-            - monitor
-            - default
-        restart: unless-stopped
-        deploy:
-            resources:
-                limits:
-                    cpus: "1.0"
-                    memory: "384M"
-                reservations:
-                    cpus: "0.5"
-                    memory: "256M"
-
-    alertmanager:
-        image: prom/alertmanager:latest
-        container_name: alertmanager
-        volumes:
-            - alertmanager-data:/alertmanager-data
-            - ~/code/prometheus/alertmanager/config.yml:/etc/alertmanager/config.yml
-            - ~/code/prometheus/secrets/alertmanager_pw:/secrets/alertmanager_pw:ro
-        command:
-            - "--config.file=/etc/alertmanager/config.yml"
-            - "--storage.path=/alertmanager"
-        env_file: .env
-        ports:
-            - "192.168.68.63:9093:9093"
-        networks:
-            - monitor
-        restart: unless-stopped
-
-    cadvisor:
-        image: gcr.io/cadvisor/cadvisor:latest
-        container_name: cadvisor
-        env_file: .env
-        command:
-            - "--enable_metrics=cpu,memory,network"
-            - "--store_container_labels=false"
-            - "--docker_only=true"
-            - "--housekeeping_interval=30s"
-        volumes:
-            - "/:/rootfs:ro"
-            - "/var/run:/var/run:ro"
-            - "/sys:/sys:ro"
-            - "/var/lib/docker/:/var/lib/docker:ro"
-            - "/dev/disk/:/dev/disk:ro"
-        deploy:
-            resources:
-                limits:
-                    cpus: "0.5"
-                    memory: "256M"
-        ports:
-            - "8080:8080"
-        networks:
-            - monitor
-        restart: unless-stopped
-
-    grafana:
-        container_name: grafana
-        env_file: .env
-        command: ["./run.sh", "-disable-reporting"]
-        environment:
-            - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-admin}
-            - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
-            - GF_USERS_ALLOW_SIGN_UP=false
-        ports:
-            - 3000:3000
-        image: grafana/grafana
-        volumes:
-            - grafana-data:/var/lib/grafana
-            - ~/code/prometheus/grafana/provisioning:/etc/grafana/provisioning
-            - ~/code/prometheus/grafana/provisioning/dashboards:/var/lib/grafana/dashboards
-            - ~/code/prometheus/secrets/grafana_pw:/run/secrets/grafana_pw:ro
-        networks:
-            - monitor
-        restart: unless-stopped
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    env_file: .env
+    volumes:
+      - /home/jenc/code/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      # Use ext4 partition for the tsdb
+      - /mnt/storage/prometheus:/prometheus
+      - /home/jenc/code/prometheus/secrets/grafana_pw:/secrets/grafana_pw:ro
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://prometheus:9090/-/healthy
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.wal-compression # Compress write-ahead log
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+      - --web.enable-lifecycle # Enable runtime reloading
+      - --web.enable-admin-api # Enable admin API
+    ports:
+      - 127.0.0.1:9090:9090 # LAN only"
+    extra_hosts: [host.docker.internal:host-gateway]
+    networks: [monitor, default]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 384M
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    volumes:
+      - alertmanager-data:/alertmanager-data
+      - /home/jenc/code/prometheus/alertmanager/config.yml:/etc/alertmanager/config.yml
+      - /home/jenc/code/prometheus/secrets/alertmanager_pw:/secrets/alertmanager_pw:ro
+    command:
+      - --config.file=/etc/alertmanager/config.yml
+      - --storage.path=/alertmanager-data
+    env_file: .env
+    ports: [127.0.0.1:9093:9093]
+    networks: [monitor]
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    env_file: .env
+    command:
+      - --enable_metrics=cpu,memory,network
+      - --store_container_labels=false
+      - --docker_only=true
+      - --housekeeping_interval=30s
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    ports: [8080:8080]
+    networks: [monitor]
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  grafana:
+    container_name: grafana
+    env_file: .env
+    command: [./run.sh, -disable-reporting]
+    environment:
+      - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports: [3000:3000]
+    image: grafana/grafana
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - /home/jenc/code/prometheus/grafana/provisioning:/etc/grafana/provisioning
+      - /home/jenc/code/prometheus/grafana/provisioning/dashboards:/var/lib/grafana/dashboards
+      - /home/jenc/code/prometheus/secrets/grafana_pw:/run/secrets/grafana_pw:ro
+    networks: [monitor]
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    env_file: .env
+    user: 65536:65534 # nobody user/group
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /mnt/storage/node_exporter/textfile_collector:/var/lib/node_exporter/textfile_collector:ro
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.ignored-mount-points=^/(sys|proc|boot|dev|var/lib/docker/|host|etc)($|/)
+      - --collector.textfile.directory=/var/lib/node_exporter/textfile_collector
+    ports: [9100:9100]
+    networks: [monitor]
+    restart: unless-stopped
+  process-exporter:
+    image: ncabatoff/process-exporter:latest
+    container_name: process-exporter
+    env_file: .env
+    volumes:
+      - /home/jenc/code/prometheus/process-exporter.yml:/conf/process-exporter.yml:ro
+      - /proc:/host/proc:ro
+    command: [--config.path=/conf/process-exporter.yml, --procfs=/host/proc]
+    ports: [9256:9256]
+    networks: [monitor]
+    restart: unless-stopped
 volumes:
-    prometheus-data:
-    grafana-data:
-    alertmanager-data:
+  prometheus-data:
+  grafana-data:
+  alertmanager-data:
